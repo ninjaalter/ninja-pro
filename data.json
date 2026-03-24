@@ -1,0 +1,20 @@
+{
+  "app": {
+    "toggle_key": "insert",
+    "version": "19"
+  },
+  "users": {
+    "admin": {
+      "password_hash": "d6fe8c68",
+      "role": "admin",
+      "banned": false,
+      "created": "2025-03-25T00:00:00"
+    }
+  },
+  "scripts": {
+    "demorgan": { "w_time": 2, "s_time": 2, "wait_time": 540 },
+    "illegal": { "key_g": "g", "key_1": "e", "key_2": "4", "key_3": "3", "delay_between": 0.3, "loop_delay": 2.0 },
+    "pach": { "key_g": "g", "key_basic": "e", "key_hand": "f", "delay_between": 0.3, "loop_delay": 2.0 },
+    "drug": { "key": "e", "count": 5, "initial_delay": 2, "repeat_delay": 120 }
+  }
+}
