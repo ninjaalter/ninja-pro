@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🦜 Ninja Pro - Admin Login</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #0a0a0a;
+            color: white;
+            font-family: 'Segoe UI', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .login-box {
+            background: #151515;
+            padding: 40px;
+            border-radius: 10px;
+            border: 1px solid #333;
+            text-align: center;
+            width: 350px;
+        }
+        .logo { font-size: 50px; margin-bottom: 10px; }
+        h1 { color: #00d4ff; margin-bottom: 30px; }
+        input {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            background: #0a0a0a;
+            border: 1px solid #333;
+            color: white;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        input:focus { outline: none; border-color: #00d4ff; }
+        button {
+            width: 100%;
+            padding: 12px;
+            background: #00d4ff;
+            color: #0a0a0a;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button:hover { background: #33ddff; }
+        .error { color: #ff4757; margin-top: 10px; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="login-box">
+        <div class="logo">🦜</div>
+        <h1>NINJA PRO ADMIN</h1>
+        <input type="text" id="username" placeholder="Admin Username">
+        <input type="password" id="password" placeholder="Password">
+        <button onclick="login()">🔐 LOGIN</button>
+        <div id="error" class="error"></div>
+    </div>
+
+    <script>
+        // Default admin credentials (change these!)
+        const ADMIN_USER = "admin";
+        const ADMIN_PASS = "ninja2024";
+
+        function login() {
+            const user = document.getElementById('username').value;
+            const pass = document.getElementById('password').value;
+            
+            if (user === ADMIN_USER && pass === ADMIN_PASS) {
+                localStorage.setItem('ninja_admin', 'true');
+                window.location.href = 'dashboard.html';
+            } else {
+                document.getElementById('error').textContent = 'Invalid credentials!';
+            }
+        }
+    </script>
+</body>
+</html>
