@@ -7,8 +7,16 @@
     "admin": {
       "password_hash": "d6fe8c68",
       "role": "admin",
+      "expiry": null,
       "banned": false,
       "created": "2025-03-25T00:00:00"
+    },
+    "ninja": {
+      "password_hash": "d6fe8c68",
+      "role": "user",
+      "expiry": "2026-03-25T23:59:59",
+      "banned": false,
+      "created": "2025-03-25T12:00:00"
     }
   },
   "scripts": {
