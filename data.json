@@ -2,15 +2,15 @@
   "app": {
     "toggle_key": "insert",
     "version": "19",
-    "last_updated": "2026-03-25T18:43:55.565Z"
+    "last_updated": "2026-03-25T18:45:39.338Z"
   },
   "users": {
     "ninja": {
       "password_hash": "16e73b68",
       "role": "admin",
       "expiry": "2026-04-24T18:00:46.095Z",
-      "banned": true,
-      "banned_reason": "test",
+      "banned": false,
+      "banned_reason": "",
       "created": "2026-03-24T21:10:03.275Z",
       "banned_at": "2026-03-25T18:43:50.233Z"
     }
