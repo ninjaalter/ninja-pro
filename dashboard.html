@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>👑 Ninja Pro Dashboard - Realtime</title>
     
-    <!-- ==================== FIREBASE SDK ==================== -->
+    <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
     
@@ -116,16 +116,26 @@
             font-weight: bold;
         }
         
-        .hardware-info {
-            background: #0a0a0a;
-            padding: 10px;
-            border-radius: 5px;
-            font-family: monospace;
-            font-size: 12px;
+        .device-count {
+            background: #1a1a2e;
             color: #00d4ff;
-            max-width: 300px;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
         }
-        .hardware-info div { margin: 3px 0; }
+        
+        .connection-status {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-weight: bold;
+            z-index: 9999;
+        }
+        .conn-connected { background: #00d26a; color: white; }
+        .conn-disconnected { background: #ff4757; color: white; }
         
         .modal {
             display: none;
@@ -157,14 +167,6 @@
         .modal-buttons { display: flex; gap: 10px; margin-top: 20px; }
         .modal-buttons button { flex: 1; }
         
-        .export-section {
-            background: #1a1a2e;
-            padding: 20px;
-            border-radius: 10px;
-            margin-top: 20px;
-            border: 2px solid #00d26a;
-        }
-        
         .json-preview {
             background: #0a0a0a;
             padding: 15px;
@@ -179,14 +181,14 @@
             word-break: break-all;
         }
         
-        .hardware-modal {
-            width: 700px !important;
+        .device-modal {
+            width: 800px !important;
             max-height: 80vh;
             overflow-y: auto;
         }
         
         .device-list {
-            max-height: 400px;
+            max-height: 500px;
             overflow-y: auto;
         }
         
@@ -203,11 +205,35 @@
             opacity: 0.7;
         }
         
+        .device-item.current {
+            border-left-color: #00d26a;
+            background: #1a2f1a;
+        }
+        
         .device-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 10px;
+        }
+        
+        .device-stats {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 10px;
+        }
+        
+        .device-stat {
+            background: #1a1a1a;
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-size: 12px;
+        }
+        
+        .device-stat label {
+            color: #666;
+            font-size: 10px;
+            display: block;
         }
         
         .device-info {
@@ -222,6 +248,7 @@
             background: #1a1a1a;
             padding: 5px 10px;
             border-radius: 3px;
+            word-break: break-all;
         }
         
         .device-info label {
@@ -231,17 +258,23 @@
             margin-bottom: 2px;
         }
         
-        .connection-status {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            padding: 10px 20px;
-            border-radius: 5px;
-            font-weight: bold;
-            z-index: 9999;
+        .login-history {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #333;
         }
-        .conn-connected { background: #00d26a; color: white; }
-        .conn-disconnected { background: #ff4757; color: white; }
+        
+        .login-history h4 {
+            color: #ffa502;
+            font-size: 12px;
+            margin-bottom: 5px;
+        }
+        
+        .login-count {
+            color: #00d26a;
+            font-weight: bold;
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
@@ -293,12 +326,13 @@
                         <th>SCRIPT</th>
                         <th>DEVICE</th>
                         <th>IP ADDRESS</th>
+                        <th>LOGIN COUNT</th>
                         <th>LAST SEEN</th>
                         <th>ACTIONS</th>
                     </tr>
                 </thead>
                 <tbody id="liveUsersTable">
-                    <tr><td colspan="7" style="text-align: center; color: #666;">Loading real-time data...</td></tr>
+                    <tr><td colspan="8" style="text-align: center; color: #666;">Loading real-time data...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -314,6 +348,7 @@
                         <th>STATUS</th>
                         <th>EXPIRES</th>
                         <th>DEVICES</th>
+                        <th>TOTAL LOGINS</th>
                         <th>ACTIONS</th>
                     </tr>
                 </thead>
@@ -374,15 +409,15 @@
         </div>
     </div>
 
-    <!-- Hardware/Devices Modal -->
-    <div class="modal" id="hardwareModal">
-        <div class="modal-content hardware-modal">
-            <h3>💻 DEVICES - <span id="hardwareUsername"></span></h3>
+    <!-- Device Details Modal -->
+    <div class="modal" id="deviceModal">
+        <div class="modal-content device-modal">
+            <h3>💻 DEVICE DETAILS - <span id="deviceUsername"></span></h3>
             <div class="device-list" id="deviceList">
                 <!-- Dynamic content -->
             </div>
             <div class="modal-buttons">
-                <button class="btn" style="background: #666; color: white;" onclick="closeModal('hardwareModal')">CLOSE</button>
+                <button class="btn" style="background: #666; color: white;" onclick="closeModal('deviceModal')">CLOSE</button>
             </div>
         </div>
     </div>
@@ -420,9 +455,8 @@
 
     <script>
         // ==================== FIREBASE CONFIG ====================
-        // YEH AAPKE FIREBASE DATABASE URL DAALEIN
         const firebaseConfig = {
-                databaseURL: "https://ninja-pro-8bea8-default-rtdb.asia-southeast1.firebasedatabase.app/"
+            databaseURL: "https://ninja-pro-8bea8-default-rtdb.asia-southeast1.firebasedatabase.app/"
         };
         
         // Initialize Firebase
@@ -453,6 +487,10 @@
             "drug": { "key": "e", "count": 5, "initial_delay": 2, "repeat_delay": 120 }
         };
 
+        // Store live data
+        let liveUsersData = {};
+        let deviceLoginCounts = {}; // Track login counts per device
+
         // ==================== REALTIME LISTENERS ====================
         
         // Connection status monitor
@@ -474,9 +512,47 @@
             
             liveUsersRef.on('value', (snapshot) => {
                 const data = snapshot.val() || {};
+                liveUsersData = data;
+                
+                // Update login counts
+                updateLoginCounts(data);
+                
                 renderLiveUsers(data);
                 updateStats(data);
+                renderTable(); // Update all users table too
             });
+        }
+
+        function updateLoginCounts(data) {
+            const now = Date.now();
+            const twoMinutes = 2 * 60 * 1000;
+            
+            for (const [username, info] of Object.entries(data)) {
+                if (!info || !info.hwid) continue;
+                
+                const lastSeen = info.timestamp ? info.timestamp * 1000 : 0;
+                const isOnline = info.online && (now - lastSeen < twoMinutes);
+                
+                if (isOnline) {
+                    const deviceKey = `${username}_${info.hwid}`;
+                    
+                    if (!deviceLoginCounts[deviceKey]) {
+                        deviceLoginCounts[deviceKey] = {
+                            count: 0,
+                            firstSeen: new Date().toISOString()
+                        };
+                    }
+                    
+                    // Increment count every time we see this device online
+                    deviceLoginCounts[deviceKey].count++;
+                    deviceLoginCounts[deviceKey].lastSeen = new Date().toISOString();
+                }
+            }
+        }
+
+        function getDeviceLoginCount(username, hwid) {
+            const deviceKey = `${username}_${hwid}`;
+            return deviceLoginCounts[deviceKey] || { count: 0, firstSeen: '-', lastSeen: '-' };
         }
 
         function renderLiveUsers(data) {
@@ -489,7 +565,9 @@
             let onlineCount = 0;
             
             for (const [username, info] of Object.entries(data)) {
-                // Check if online (last seen within 2 minutes)
+                if (!info) continue;
+                
+                // Check if online (last 2 minutes)
                 const lastSeen = info.timestamp ? info.timestamp * 1000 : 0;
                 const isOnline = info.online && (now - lastSeen < twoMinutes);
                 
@@ -513,23 +591,27 @@
                     ? new Date(info.last_seen).toLocaleTimeString() 
                     : 'Never';
                 
+                // Login count for this device
+                const loginInfo = getDeviceLoginCount(username, info.hwid);
+                const loginCount = loginInfo.count > 0 ? loginInfo.count : '1';
+                
                 tr.innerHTML = `
                     <td><strong>${username}</strong> ${info.is_admin ? '👑' : ''}</td>
                     <td class="${statusClass}">${statusText}</td>
                     <td>${scriptBadge}</td>
                     <td>${device}</td>
                     <td><code>${ip}</code></td>
+                    <td><span class="login-count">${loginCount}</span></td>
                     <td>${lastSeenStr}</td>
                     <td>
-                        <button class="btn-refresh" onclick="refreshUser('${username}')">🔄</button>
-                        <button class="btn-view" onclick="viewLiveDetails('${username}')">👁️</button>
+                        <button class="btn-view" onclick="viewDeviceDetails('${username}')">💻 DEVICES</button>
                     </td>
                 `;
                 tbody.appendChild(tr);
             }
             
             if (Object.keys(data).length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #666;">No users connected</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #666;">No users connected</td></tr>';
             }
             
             document.getElementById('onlineUsers').textContent = onlineCount;
@@ -539,29 +621,146 @@
             const total = Object.keys(users).length;
             const banned = Object.values(users).filter(u => u.banned).length;
             const active = total - banned;
-            const totalDevices = Object.values(users).reduce((sum, u) => sum + (u.devices?.length || 0), 0);
+            
+            // Count total unique devices from live data
+            const uniqueDevices = new Set();
+            for (const [username, info] of Object.entries(liveData)) {
+                if (info && info.hwid) {
+                    uniqueDevices.add(`${username}_${info.hwid}`);
+                }
+            }
             
             document.getElementById('totalUsers').textContent = total;
             document.getElementById('activeUsers').textContent = active;
             document.getElementById('bannedUsers').textContent = banned;
-            document.getElementById('totalDevices').textContent = totalDevices;
+            document.getElementById('totalDevices').textContent = uniqueDevices.size;
         }
 
-        function refreshUser(username) {
-            alert(`Refreshing ${username}...`);
+        function viewDeviceDetails(username) {
+            const liveInfo = liveUsersData[username] || {};
+            const userDevices = users[username]?.devices || [];
+            
+            document.getElementById('deviceUsername').textContent = username.toUpperCase();
+            
+            const deviceList = document.getElementById('deviceList');
+            deviceList.innerHTML = '';
+            
+            // Current device from live data
+            if (liveInfo.hwid) {
+                const currentDiv = document.createElement('div');
+                currentDiv.className = 'device-item current';
+                
+                const loginInfo = getDeviceLoginCount(username, liveInfo.hwid);
+                
+                currentDiv.innerHTML = `
+                    <div class="device-header">
+                        <strong>🟢 CURRENT DEVICE (ONLINE)</strong>
+                        <span class="device-count">Login #${loginInfo.count || 1}</span>
+                    </div>
+                    <div class="device-stats">
+                        <div class="device-stat">
+                            <label>PC Name</label>
+                            <span>${liveInfo.pc_name || 'Unknown'}</span>
+                        </div>
+                        <div class="device-stat">
+                            <label>IP Address</label>
+                            <span>${liveInfo.ip || 'N/A'}</span>
+                        </div>
+                        <div class="device-stat">
+                            <label>Hardware ID</label>
+                            <span>${liveInfo.hwid.substring(0, 16)}...</span>
+                        </div>
+                        <div class="device-stat">
+                            <label>Script Running</label>
+                            <span>${liveInfo.script_running || 'None'}</span>
+                        </div>
+                    </div>
+                    <div class="device-info">
+                        <div>
+                            <label>Full HWID</label>
+                            <span>${liveInfo.hwid}</span>
+                        </div>
+                        <div>
+                            <label>Admin Status</label>
+                            <span>${liveInfo.is_admin ? '👑 Yes' : '👤 No'}</span>
+                        </div>
+                    </div>
+                    <div class="login-history">
+                        <h4>📊 LOGIN STATISTICS</h4>
+                        <div class="device-stats">
+                            <div class="device-stat">
+                                <label>Total Logins (This Session)</label>
+                                <span class="login-count">${loginInfo.count || 1}</span>
+                            </div>
+                            <div class="device-stat">
+                                <label>First Seen</label>
+                                <span>${loginInfo.firstSeen ? new Date(loginInfo.firstSeen).toLocaleString() : 'Just now'}</span>
+                            </div>
+                            <div class="device-stat">
+                                <label>Last Active</label>
+                                <span>${loginInfo.lastSeen ? new Date(loginInfo.lastSeen).toLocaleString() : 'Now'}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                deviceList.appendChild(currentDiv);
+            }
+            
+            // All registered devices from GitHub data
+            if (userDevices.length > 0) {
+                const historyHeader = document.createElement('div');
+                historyHeader.style.marginTop = '20px';
+                historyHeader.style.marginBottom = '10px';
+                historyHeader.innerHTML = '<h3 style="color: #00d4ff;">📱 ALL REGISTERED DEVICES</h3>';
+                deviceList.appendChild(historyHeader);
+                
+                userDevices.forEach((device, index) => {
+                    const div = document.createElement('div');
+                    div.className = `device-item ${device.banned ? 'banned' : ''}`;
+                    
+                    const isCurrentDevice = liveInfo.hwid === device.hwid;
+                    const statusBadge = isCurrentDevice ? '<span style="color: #00d26a; font-weight: bold;">🟢 CURRENT</span>' : 
+                                       (device.banned ? '<span style="color: #ff4757;">🚫 BANNED</span>' : '<span style="color: #888;">⚪ OFFLINE</span>');
+                    
+                    div.innerHTML = `
+                        <div class="device-header">
+                            <div>
+                                <strong>💻 Device #${index + 1}</strong> ${statusBadge}
+                            </div>
+                            <div>
+                                ${device.banned 
+                                    ? `<button class="btn-unban" onclick="unbanDevice('${username}', ${index})">✓ UNBAN</button>`
+                                    : `<button class="btn-ban" onclick="banDevice('${username}', ${index})">🚫 BAN</button>`
+                                }
+                            </div>
+                        </div>
+                        <div class="device-info">
+                            <div>
+                                <label>Hardware ID</label>
+                                <span>${device.hwid || 'N/A'}</span>
+                            </div>
+                            <div>
+                                <label>IP Address</label>
+                                <span>${device.ip || 'N/A'}</span>
+                            </div>
+                            <div>
+                                <label>PC Name</label>
+                                <span>${device.pc_name || 'N/A'}</span>
+                            </div>
+                            <div>
+                                <label>Last Seen</label>
+                                <span>${device.last_seen ? new Date(device.last_seen).toLocaleString() : 'N/A'}</span>
+                            </div>
+                        </div>
+                    `;
+                    deviceList.appendChild(div);
+                });
+            } else if (!liveInfo.hwid) {
+                deviceList.innerHTML = '<p style="color: #666; text-align: center;">No devices registered</p>';
+            }
+            
+            document.getElementById('deviceModal').style.display = 'flex';
         }
-
-        function viewLiveDetails(username) {
-            const liveRef = database.ref(`live_users/${username}`);
-            liveRef.once('value', (snap) => {
-                const data = snap.val();
-                if (data) {
-                    alert(`User: ${username}\nPC: ${data.pc_name}\nIP: ${data.ip}\nHWID: ${data.hwid}\nScript: ${data.script_running}\nLast Seen: ${data.last_seen}`);
-                }
-            });
-        }
-
-        // ==================== EXISTING FUNCTIONS ====================
 
         function saveData() {
             localStorage.setItem('ninja_users', JSON.stringify(users));
@@ -590,72 +789,32 @@
                 const deviceCount = data.devices?.length || 0;
                 const roleIcon = data.role === 'admin' ? '👑' : '👤';
                 
+                // Calculate total logins for this user across all devices
+                let totalLogins = 0;
+                if (liveUsersData[username]) {
+                    const liveInfo = liveUsersData[username];
+                    const loginInfo = getDeviceLoginCount(username, liveInfo.hwid);
+                    totalLogins = loginInfo.count || 0;
+                }
+                
                 tr.innerHTML = `
                     <td><strong>${roleIcon} ${username}</strong></td>
                     <td>${data.role.toUpperCase()}</td>
                     <td class="${statusClass}">${statusText}</td>
                     <td>${expiryText}</td>
-                    <td>${deviceCount} 💻</td>
+                    <td><span class="device-count">${deviceCount}</span></td>
+                    <td><span class="login-count">${totalLogins > 0 ? totalLogins : '-'}</span></td>
                     <td>
                         ${data.banned 
                             ? `<button class="btn-unban" onclick="unbanUser('${username}')">✓ UNBAN</button>`
                             : `<button class="btn-ban" onclick="banUser('${username}')">🚫 BAN</button>`
                         }
                         <button class="btn-edit" onclick="editUser('${username}')">✏️ EDIT</button>
-                        <button class="btn-view" onclick="viewDevices('${username}')">💻 DEVICES</button>
+                        <button class="btn-view" onclick="viewDeviceDetails('${username}')">💻 DEVICES</button>
                     </td>
                 `;
                 tbody.appendChild(tr);
             }
-        }
-
-        function viewDevices(username) {
-            const user = users[username];
-            document.getElementById('hardwareUsername').textContent = username.toUpperCase();
-            
-            const deviceList = document.getElementById('deviceList');
-            deviceList.innerHTML = '';
-            
-            if (!user.devices || user.devices.length === 0) {
-                deviceList.innerHTML = '<p style="color: #666; text-align: center;">No devices registered yet</p>';
-            } else {
-                user.devices.forEach((device, index) => {
-                    const div = document.createElement('div');
-                    div.className = `device-item ${device.banned ? 'banned' : ''}`;
-                    div.innerHTML = `
-                        <div class="device-header">
-                            <strong>💻 ${device.pc_name || 'Unknown PC'}</strong>
-                            <div>
-                                ${device.banned 
-                                    ? `<button class="btn-unban" onclick="unbanDevice('${username}', ${index})">✓ UNBAN DEVICE</button>`
-                                    : `<button class="btn-ban" onclick="banDevice('${username}', ${index})">🚫 BAN DEVICE</button>`
-                                }
-                            </div>
-                        </div>
-                        <div class="device-info">
-                            <div>
-                                <label>Hardware ID</label>
-                                <span>${device.hwid || 'N/A'}</span>
-                            </div>
-                            <div>
-                                <label>IP Address</label>
-                                <span>${device.ip || 'N/A'}</span>
-                            </div>
-                            <div>
-                                <label>PC Name</label>
-                                <span>${device.pc_name || 'N/A'}</span>
-                            </div>
-                            <div>
-                                <label>Last Seen</label>
-                                <span>${device.last_seen ? new Date(device.last_seen).toLocaleString() : 'N/A'}</span>
-                            </div>
-                        </div>
-                    `;
-                    deviceList.appendChild(div);
-                });
-            }
-            
-            document.getElementById('hardwareModal').style.display = 'flex';
         }
 
         function showAddUser() {
@@ -723,7 +882,7 @@
             users[username].devices[deviceIndex].banned = true;
             users[username].devices[deviceIndex].banned_at = new Date().toISOString();
             saveData();
-            viewDevices(username);
+            viewDeviceDetails(username);
             alert('Device banned! User cannot login from this PC anymore.');
         }
 
@@ -731,7 +890,7 @@
             if (!users[username].devices[deviceIndex]) return;
             users[username].devices[deviceIndex].banned = false;
             saveData();
-            viewDevices(username);
+            viewDeviceDetails(username);
         }
 
         function banUser(username) {
