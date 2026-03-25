@@ -2,7 +2,7 @@
   "app": {
     "toggle_key": "insert",
     "version": "19",
-    "last_updated": "2026-03-25T18:45:39.338Z"
+    "last_updated": "2026-03-25T18:46:26.258Z"
   },
   "users": {
     "ninja": {
@@ -13,6 +13,15 @@
       "banned_reason": "",
       "created": "2026-03-24T21:10:03.275Z",
       "banned_at": "2026-03-25T18:43:50.233Z"
+    },
+    "berlin": {
+      "password_hash": "ad55b50",
+      "role": "admin",
+      "expiry": "2053-08-09T18:46:16.736Z",
+      "banned": false,
+      "banned_reason": "",
+      "created": "2026-03-25T18:46:16.736Z",
+      "devices": []
     }
   },
   "scripts": {
