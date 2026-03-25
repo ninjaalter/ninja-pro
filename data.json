@@ -1,28 +1,46 @@
 {
   "app": {
     "toggle_key": "insert",
-    "version": "19"
+    "version": "19",
+    "last_updated": "2026-03-25T18:11:36.683Z"
   },
   "users": {
-    "admin": {
-      "password_hash": "d6fe8c68",
-      "role": "admin",
-      "expiry": null,
-      "banned": false,
-      "created": "2025-03-25T00:00:00"
-    },
     "ninja": {
-      "password_hash": "d6fe8c68",
-      "role": "user",
-      "expiry": "2026-03-25T23:59:59",
+      "password_hash": "16e73b68",
+      "role": "admin",
+      "expiry": "2026-04-24T18:00:46.095Z",
       "banned": false,
-      "created": "2025-03-25T12:00:00"
+      "banned_reason": "",
+      "created": "2026-03-24T21:10:03.275Z",
+      "banned_at": "2026-03-24T21:12:43.433Z"
     }
   },
   "scripts": {
-    "demorgan": { "w_time": 2, "s_time": 2, "wait_time": 540 },
-    "illegal": { "key_g": "g", "key_1": "e", "key_2": "4", "key_3": "3", "delay_between": 0.3, "loop_delay": 2.0 },
-    "pach": { "key_g": "g", "key_basic": "e", "key_hand": "f", "delay_between": 0.3, "loop_delay": 2.0 },
-    "drug": { "key": "e", "count": 5, "initial_delay": 2, "repeat_delay": 120 }
+    "demorgan": {
+      "w_time": 2,
+      "s_time": 2,
+      "wait_time": 540
+    },
+    "illegal": {
+      "key_g": "g",
+      "key_1": "e",
+      "key_2": "4",
+      "key_3": "3",
+      "delay_between": 0.3,
+      "loop_delay": 2
+    },
+    "pach": {
+      "key_g": "g",
+      "key_basic": "e",
+      "key_hand": "f",
+      "delay_between": 0.3,
+      "loop_delay": 2
+    },
+    "drug": {
+      "key": "e",
+      "count": 5,
+      "initial_delay": 2,
+      "repeat_delay": 120
+    }
   }
 }
