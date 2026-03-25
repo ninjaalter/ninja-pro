@@ -3,7 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>👑 Ninja Pro Dashboard</title>
+    <title>👑 Ninja Pro Dashboard - Realtime</title>
+    
+    <!-- ==================== FIREBASE SDK ==================== -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -36,6 +41,7 @@
         .btn-unban { background: #00d26a; color: white; font-size: 12px; padding: 5px 10px; }
         .btn-edit { background: #ffa502; color: white; font-size: 12px; padding: 5px 10px; }
         .btn-view { background: #9b59b6; color: white; font-size: 12px; padding: 5px 10px; }
+        .btn-refresh { background: #00d4ff; color: #0a0a0a; font-size: 12px; padding: 5px 10px; }
         
         .container {
             max-width: 1400px;
@@ -45,7 +51,7 @@
         
         .stats {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
+            grid-template-columns: repeat(5, 1fr);
             gap: 20px;
             margin-bottom: 30px;
         }
@@ -57,6 +63,8 @@
         }
         .stat-card h3 { color: #888; font-size: 14px; }
         .stat-card .number { font-size: 32px; font-weight: bold; color: #00d4ff; }
+        .stat-card.online { border-left-color: #00d26a; }
+        .stat-card.offline { border-left-color: #ff4757; }
         
         .section {
             background: #151515;
@@ -80,6 +88,33 @@
         .status-active { color: #00d26a; }
         .status-banned { color: #ff4757; }
         .status-expired { color: #ffa502; }
+        .status-online { color: #00d26a; font-weight: bold; }
+        .status-offline { color: #666; }
+        
+        .live-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background: #00d26a;
+            border-radius: 50%;
+            margin-right: 5px;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .script-badge {
+            background: #0f3460;
+            color: #00d4ff;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: bold;
+        }
         
         .hardware-info {
             background: #0a0a0a;
@@ -195,11 +230,26 @@
             display: block;
             margin-bottom: 2px;
         }
+        
+        .connection-status {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-weight: bold;
+            z-index: 9999;
+        }
+        .conn-connected { background: #00d26a; color: white; }
+        .conn-disconnected { background: #ff4757; color: white; }
     </style>
 </head>
 <body>
+    <!-- Connection Status -->
+    <div id="connStatus" class="connection-status conn-disconnected">🔴 Disconnected</div>
+
     <div class="header">
-        <h1>👑 NINJA PRO ADMIN</h1>
+        <h1>👑 NINJA PRO ADMIN <span style="font-size: 14px; color: #00d26a;">(Realtime)</span></h1>
         <div>
             <button class="btn btn-export" onclick="showExport()">📥 EXPORT JSON</button>
             <button class="btn btn-add" onclick="showAddUser()">➕ ADD USER</button>
@@ -213,6 +263,10 @@
             <div class="stat-card">
                 <h3>TOTAL USERS</h3>
                 <div class="number" id="totalUsers">0</div>
+            </div>
+            <div class="stat-card online">
+                <h3>🟢 ONLINE NOW</h3>
+                <div class="number" id="onlineUsers">0</div>
             </div>
             <div class="stat-card">
                 <h3>ACTIVE</h3>
@@ -228,9 +282,30 @@
             </div>
         </div>
 
-        <!-- Users List -->
+        <!-- Live Users Section -->
         <div class="section">
-            <h2>👥 USER MANAGEMENT</h2>
+            <h2><span class="live-indicator"></span> LIVE USERS (Real-time)</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>USER</th>
+                        <th>STATUS</th>
+                        <th>SCRIPT</th>
+                        <th>DEVICE</th>
+                        <th>IP ADDRESS</th>
+                        <th>LAST SEEN</th>
+                        <th>ACTIONS</th>
+                    </tr>
+                </thead>
+                <tbody id="liveUsersTable">
+                    <tr><td colspan="7" style="text-align: center; color: #666;">Loading real-time data...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- All Users List -->
+        <div class="section">
+            <h2>👥 ALL USERS</h2>
             <table>
                 <thead>
                     <tr>
@@ -344,20 +419,30 @@
     </div>
 
     <script>
+        // ==================== FIREBASE CONFIG ====================
+        // YEH AAPKE FIREBASE DATABASE URL DAALEIN
+        const firebaseConfig = {
+            databaseURL: "https://AAPKA-PROJECT-default-rtdb.firebaseio.com/"  // <-- YAHAN CHANGE KAREIN!
+        };
+        
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+        
         // Check auth
         if (!localStorage.getItem('ninja_admin')) {
             window.location.href = 'index.html';
         }
 
-        // Load data
+        // Load data from localStorage (GitHub se)
         let users = JSON.parse(localStorage.getItem('ninja_users')) || {
             "admin": {
                 "password_hash": "d6fe8c68",
                 "role": "admin",
                 "expiry": null,
                 "banned": false,
-                "created": new Date().toISOString(),
-                "devices": []
+                created: new Date().toISOString(),
+                devices: []
             }
         };
 
@@ -368,13 +453,89 @@
             "drug": { "key": "e", "count": 5, "initial_delay": 2, "repeat_delay": 120 }
         };
 
-        function saveData() {
-            localStorage.setItem('ninja_users', JSON.stringify(users));
-            updateStats();
-            renderTable();
+        // ==================== REALTIME LISTENERS ====================
+        
+        // Connection status monitor
+        const connectedRef = database.ref(".info/connected");
+        connectedRef.on("value", (snap) => {
+            const status = document.getElementById('connStatus');
+            if (snap.val() === true) {
+                status.textContent = "🟢 Connected";
+                status.className = "connection-status conn-connected";
+            } else {
+                status.textContent = "🔴 Disconnected";
+                status.className = "connection-status conn-disconnected";
+            }
+        });
+
+        // Live users listener
+        function listenLiveUsers() {
+            const liveUsersRef = database.ref('live_users');
+            
+            liveUsersRef.on('value', (snapshot) => {
+                const data = snapshot.val() || {};
+                renderLiveUsers(data);
+                updateStats(data);
+            });
         }
 
-        function updateStats() {
+        function renderLiveUsers(data) {
+            const tbody = document.getElementById('liveUsersTable');
+            tbody.innerHTML = '';
+            
+            const now = Date.now();
+            const twoMinutes = 2 * 60 * 1000;
+            
+            let onlineCount = 0;
+            
+            for (const [username, info] of Object.entries(data)) {
+                // Check if online (last seen within 2 minutes)
+                const lastSeen = info.timestamp ? info.timestamp * 1000 : 0;
+                const isOnline = info.online && (now - lastSeen < twoMinutes);
+                
+                if (isOnline) onlineCount++;
+                
+                const tr = document.createElement('tr');
+                
+                // Status
+                const statusClass = isOnline ? 'status-online' : 'status-offline';
+                const statusText = isOnline ? '🟢 ONLINE' : '⚫ OFFLINE';
+                
+                // Script badge
+                const scriptBadge = info.script_running && info.script_running !== 'none' 
+                    ? `<span class="script-badge">${info.script_running.toUpperCase()}</span>` 
+                    : '-';
+                
+                // Device info
+                const device = info.pc_name || 'Unknown';
+                const ip = info.ip || 'N/A';
+                const lastSeenStr = info.last_seen 
+                    ? new Date(info.last_seen).toLocaleTimeString() 
+                    : 'Never';
+                
+                tr.innerHTML = `
+                    <td><strong>${username}</strong> ${info.is_admin ? '👑' : ''}</td>
+                    <td class="${statusClass}">${statusText}</td>
+                    <td>${scriptBadge}</td>
+                    <td>${device}</td>
+                    <td><code>${ip}</code></td>
+                    <td>${lastSeenStr}</td>
+                    <td>
+                        <button class="btn-refresh" onclick="refreshUser('${username}')">🔄</button>
+                        <button class="btn-view" onclick="viewLiveDetails('${username}')">👁️</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            }
+            
+            if (Object.keys(data).length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #666;">No users connected</td></tr>';
+            }
+            
+            document.getElementById('onlineUsers').textContent = onlineCount;
+        }
+
+        function updateStats(liveData) {
             const total = Object.keys(users).length;
             const banned = Object.values(users).filter(u => u.banned).length;
             const active = total - banned;
@@ -384,6 +545,27 @@
             document.getElementById('activeUsers').textContent = active;
             document.getElementById('bannedUsers').textContent = banned;
             document.getElementById('totalDevices').textContent = totalDevices;
+        }
+
+        function refreshUser(username) {
+            alert(`Refreshing ${username}...`);
+        }
+
+        function viewLiveDetails(username) {
+            const liveRef = database.ref(`live_users/${username}`);
+            liveRef.once('value', (snap) => {
+                const data = snap.val();
+                if (data) {
+                    alert(`User: ${username}\nPC: ${data.pc_name}\nIP: ${data.ip}\nHWID: ${data.hwid}\nScript: ${data.script_running}\nLast Seen: ${data.last_seen}`);
+                }
+            });
+        }
+
+        // ==================== EXISTING FUNCTIONS ====================
+
+        function saveData() {
+            localStorage.setItem('ninja_users', JSON.stringify(users));
+            renderTable();
         }
 
         function renderTable() {
@@ -476,22 +658,6 @@
             document.getElementById('hardwareModal').style.display = 'flex';
         }
 
-        function banDevice(username, deviceIndex) {
-            if (!users[username].devices[deviceIndex]) return;
-            users[username].devices[deviceIndex].banned = true;
-            users[username].devices[deviceIndex].banned_at = new Date().toISOString();
-            saveData();
-            viewDevices(username);
-            alert('Device banned! User cannot login from this PC anymore.');
-        }
-
-        function unbanDevice(username, deviceIndex) {
-            if (!users[username].devices[deviceIndex]) return;
-            users[username].devices[deviceIndex].banned = false;
-            saveData();
-            viewDevices(username);
-        }
-
         function showAddUser() {
             document.getElementById('addModal').style.display = 'flex';
         }
@@ -552,6 +718,22 @@
             alert(`User "${username}" created! Export JSON to apply changes.`);
         }
 
+        function banDevice(username, deviceIndex) {
+            if (!users[username].devices[deviceIndex]) return;
+            users[username].devices[deviceIndex].banned = true;
+            users[username].devices[deviceIndex].banned_at = new Date().toISOString();
+            saveData();
+            viewDevices(username);
+            alert('Device banned! User cannot login from this PC anymore.');
+        }
+
+        function unbanDevice(username, deviceIndex) {
+            if (!users[username].devices[deviceIndex]) return;
+            users[username].devices[deviceIndex].banned = false;
+            saveData();
+            viewDevices(username);
+        }
+
         function banUser(username) {
             const reason = prompt('Enter ban reason:', 'Violation of rules');
             if (reason) {
@@ -599,7 +781,7 @@
             const data = {
                 app: {
                     toggle_key: "insert",
-                    version: "19",
+                    version: "22",
                     last_updated: new Date().toISOString()
                 },
                 users: users,
@@ -643,8 +825,11 @@
             }
         }
 
-        // Initialize
-        updateStats();
+        // ==================== INITIALIZE ====================
+        // Start realtime listeners
+        listenLiveUsers();
+        
+        // Initialize static table
         renderTable();
     </script>
 </body>
