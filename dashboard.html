@@ -35,16 +35,17 @@
         .btn-ban { background: #ff4757; color: white; font-size: 12px; padding: 5px 10px; }
         .btn-unban { background: #00d26a; color: white; font-size: 12px; padding: 5px 10px; }
         .btn-edit { background: #ffa502; color: white; font-size: 12px; padding: 5px 10px; }
+        .btn-view { background: #9b59b6; color: white; font-size: 12px; padding: 5px 10px; }
         
         .container {
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
             padding: 20px;
         }
         
         .stats {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(4, 1fr);
             gap: 20px;
             margin-bottom: 30px;
         }
@@ -68,6 +69,7 @@
         table {
             width: 100%;
             border-collapse: collapse;
+            font-size: 14px;
         }
         th, td {
             text-align: left;
@@ -78,6 +80,17 @@
         .status-active { color: #00d26a; }
         .status-banned { color: #ff4757; }
         .status-expired { color: #ffa502; }
+        
+        .hardware-info {
+            background: #0a0a0a;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            color: #00d4ff;
+            max-width: 300px;
+        }
+        .hardware-info div { margin: 3px 0; }
         
         .modal {
             display: none;
@@ -116,8 +129,7 @@
             margin-top: 20px;
             border: 2px solid #00d26a;
         }
-        .export-section h3 { color: #00d26a; margin-bottom: 10px; }
-        .export-section p { color: #888; margin-bottom: 15px; font-size: 14px; }
+        
         .json-preview {
             background: #0a0a0a;
             padding: 15px;
@@ -131,15 +143,58 @@
             white-space: pre-wrap;
             word-break: break-all;
         }
-        .instructions {
-            background: #2d2d2d;
-            padding: 15px;
-            border-radius: 5px;
-            margin-top: 15px;
+        
+        .hardware-modal {
+            width: 700px !important;
+            max-height: 80vh;
+            overflow-y: auto;
         }
-        .instructions h4 { color: #ffa502; margin-bottom: 10px; }
-        .instructions ol { color: #ccc; padding-left: 20px; }
-        .instructions li { margin-bottom: 8px; font-size: 14px; }
+        
+        .device-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .device-item {
+            background: #0a0a0a;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border-left: 3px solid #00d4ff;
+        }
+        
+        .device-item.banned {
+            border-left-color: #ff4757;
+            opacity: 0.7;
+        }
+        
+        .device-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .device-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            font-size: 13px;
+            color: #aaa;
+        }
+        
+        .device-info span {
+            background: #1a1a1a;
+            padding: 5px 10px;
+            border-radius: 3px;
+        }
+        
+        .device-info label {
+            color: #666;
+            font-size: 11px;
+            display: block;
+            margin-bottom: 2px;
+        }
     </style>
 </head>
 <body>
@@ -167,6 +222,10 @@
                 <h3>BANNED</h3>
                 <div class="number" id="bannedUsers">0</div>
             </div>
+            <div class="stat-card">
+                <h3>DEVICES</h3>
+                <div class="number" id="totalDevices">0</div>
+            </div>
         </div>
 
         <!-- Users List -->
@@ -179,7 +238,7 @@
                         <th>ROLE</th>
                         <th>STATUS</th>
                         <th>EXPIRES</th>
-                        <th>CREATED</th>
+                        <th>DEVICES</th>
                         <th>ACTIONS</th>
                     </tr>
                 </thead>
@@ -240,6 +299,19 @@
         </div>
     </div>
 
+    <!-- Hardware/Devices Modal -->
+    <div class="modal" id="hardwareModal">
+        <div class="modal-content hardware-modal">
+            <h3>💻 DEVICES - <span id="hardwareUsername"></span></h3>
+            <div class="device-list" id="deviceList">
+                <!-- Dynamic content -->
+            </div>
+            <div class="modal-buttons">
+                <button class="btn" style="background: #666; color: white;" onclick="closeModal('hardwareModal')">CLOSE</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Export Modal -->
     <div class="modal" id="exportModal">
         <div class="modal-content" style="width: 600px; max-height: 80vh; overflow-y: auto;">
@@ -256,17 +328,16 @@
                 <button class="btn" style="background: #666; color: white;" onclick="closeModal('exportModal')">CLOSE</button>
             </div>
 
-            <div class="instructions">
-                <h4>📋 How to update GitHub:</h4>
-                <ol>
+            <div style="background: #2d2d2d; padding: 15px; border-radius: 5px; margin-top: 15px;">
+                <h4 style="color: #ffa502; margin-bottom: 10px;">📋 How to update GitHub:</h4>
+                <ol style="color: #ccc; padding-left: 20px;">
                     <li>Click "DOWNLOAD FILE" or "COPY TO CLIPBOARD"</li>
-                    <li>Go to your GitHub repo: <code>github.com/ninjaalter/ninja-pro</code></li>
+                    <li>Go to your GitHub repo</li>
                     <li>Click on <code>data.json</code> file</li>
                     <li>Click pencil icon (✏️) to edit</li>
                     <li>Delete old content and paste new JSON</li>
-                    <li>Click "Commit changes" at bottom</li>
-                    <li>Wait 2-3 minutes for changes to apply</li>
-                    <li>Test login in Python software!</li>
+                    <li>Click "Commit changes"</li>
+                    <li>Wait 2-3 minutes for changes</li>
                 </ol>
             </div>
         </div>
@@ -278,18 +349,18 @@
             window.location.href = 'index.html';
         }
 
-        // Load users from localStorage or initialize
+        // Load data
         let users = JSON.parse(localStorage.getItem('ninja_users')) || {
             "admin": {
                 "password_hash": "d6fe8c68",
                 "role": "admin",
                 "expiry": null,
                 "banned": false,
-                "created": new Date().toISOString()
+                "created": new Date().toISOString(),
+                "devices": []
             }
         };
 
-        // Scripts config
         const scripts = {
             "demorgan": { "w_time": 2, "s_time": 2, "wait_time": 540 },
             "illegal": { "key_g": "g", "key_1": "e", "key_2": "4", "key_3": "3", "delay_between": 0.3, "loop_delay": 2.0 },
@@ -307,10 +378,12 @@
             const total = Object.keys(users).length;
             const banned = Object.values(users).filter(u => u.banned).length;
             const active = total - banned;
+            const totalDevices = Object.values(users).reduce((sum, u) => sum + (u.devices?.length || 0), 0);
             
             document.getElementById('totalUsers').textContent = total;
             document.getElementById('activeUsers').textContent = active;
             document.getElementById('bannedUsers').textContent = banned;
+            document.getElementById('totalDevices').textContent = totalDevices;
         }
 
         function renderTable() {
@@ -332,7 +405,7 @@
                 }
                 
                 const expiryText = data.expiry ? new Date(data.expiry).toLocaleDateString() : 'Never';
-                const createdText = new Date(data.created).toLocaleDateString();
+                const deviceCount = data.devices?.length || 0;
                 const roleIcon = data.role === 'admin' ? '👑' : '👤';
                 
                 tr.innerHTML = `
@@ -340,17 +413,83 @@
                     <td>${data.role.toUpperCase()}</td>
                     <td class="${statusClass}">${statusText}</td>
                     <td>${expiryText}</td>
-                    <td>${createdText}</td>
+                    <td>${deviceCount} 💻</td>
                     <td>
                         ${data.banned 
                             ? `<button class="btn-unban" onclick="unbanUser('${username}')">✓ UNBAN</button>`
                             : `<button class="btn-ban" onclick="banUser('${username}')">🚫 BAN</button>`
                         }
                         <button class="btn-edit" onclick="editUser('${username}')">✏️ EDIT</button>
+                        <button class="btn-view" onclick="viewDevices('${username}')">💻 DEVICES</button>
                     </td>
                 `;
                 tbody.appendChild(tr);
             }
+        }
+
+        function viewDevices(username) {
+            const user = users[username];
+            document.getElementById('hardwareUsername').textContent = username.toUpperCase();
+            
+            const deviceList = document.getElementById('deviceList');
+            deviceList.innerHTML = '';
+            
+            if (!user.devices || user.devices.length === 0) {
+                deviceList.innerHTML = '<p style="color: #666; text-align: center;">No devices registered yet</p>';
+            } else {
+                user.devices.forEach((device, index) => {
+                    const div = document.createElement('div');
+                    div.className = `device-item ${device.banned ? 'banned' : ''}`;
+                    div.innerHTML = `
+                        <div class="device-header">
+                            <strong>💻 ${device.pc_name || 'Unknown PC'}</strong>
+                            <div>
+                                ${device.banned 
+                                    ? `<button class="btn-unban" onclick="unbanDevice('${username}', ${index})">✓ UNBAN DEVICE</button>`
+                                    : `<button class="btn-ban" onclick="banDevice('${username}', ${index})">🚫 BAN DEVICE</button>`
+                                }
+                            </div>
+                        </div>
+                        <div class="device-info">
+                            <div>
+                                <label>Hardware ID</label>
+                                <span>${device.hwid || 'N/A'}</span>
+                            </div>
+                            <div>
+                                <label>IP Address</label>
+                                <span>${device.ip || 'N/A'}</span>
+                            </div>
+                            <div>
+                                <label>PC Name</label>
+                                <span>${device.pc_name || 'N/A'}</span>
+                            </div>
+                            <div>
+                                <label>Last Seen</label>
+                                <span>${device.last_seen ? new Date(device.last_seen).toLocaleString() : 'N/A'}</span>
+                            </div>
+                        </div>
+                    `;
+                    deviceList.appendChild(div);
+                });
+            }
+            
+            document.getElementById('hardwareModal').style.display = 'flex';
+        }
+
+        function banDevice(username, deviceIndex) {
+            if (!users[username].devices[deviceIndex]) return;
+            users[username].devices[deviceIndex].banned = true;
+            users[username].devices[deviceIndex].banned_at = new Date().toISOString();
+            saveData();
+            viewDevices(username);
+            alert('Device banned! User cannot login from this PC anymore.');
+        }
+
+        function unbanDevice(username, deviceIndex) {
+            if (!users[username].devices[deviceIndex]) return;
+            users[username].devices[deviceIndex].banned = false;
+            saveData();
+            viewDevices(username);
         }
 
         function showAddUser() {
@@ -402,17 +541,15 @@
                 expiry: expiry,
                 banned: false,
                 banned_reason: '',
-                created: new Date().toISOString()
+                created: new Date().toISOString(),
+                devices: []
             };
             
             saveData();
             closeModal('addModal');
-            
-            // Clear form
             document.getElementById('newUsername').value = '';
             document.getElementById('newPassword').value = '';
-            
-            alert(`User "${username}" created! Don't forget to EXPORT JSON and update GitHub!`);
+            alert(`User "${username}" created! Export JSON to apply changes.`);
         }
 
         function banUser(username) {
@@ -485,13 +622,13 @@
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
-            alert('data.json downloaded! Now upload it to GitHub.');
+            alert('data.json downloaded! Upload to GitHub now.');
         }
 
         function copyJSON() {
             const jsonStr = generateJSON();
             navigator.clipboard.writeText(jsonStr).then(() => {
-                alert('JSON copied to clipboard! Now paste it in GitHub.');
+                alert('JSON copied! Paste in GitHub now.');
             });
         }
 
@@ -500,7 +637,6 @@
             window.location.href = 'index.html';
         }
 
-        // Close modal on outside click
         window.onclick = function(event) {
             if (event.target.classList.contains('modal')) {
                 event.target.style.display = 'none';
