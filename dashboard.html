@@ -31,6 +31,7 @@
         }
         .btn-logout { background: #ff4757; color: white; }
         .btn-add { background: #00d4ff; color: #0a0a0a; }
+        .btn-export { background: #00d26a; color: white; }
         .btn-ban { background: #ff4757; color: white; font-size: 12px; padding: 5px 10px; }
         .btn-unban { background: #00d26a; color: white; font-size: 12px; padding: 5px 10px; }
         .btn-edit { background: #ffa502; color: white; font-size: 12px; padding: 5px 10px; }
@@ -108,30 +109,44 @@
         .modal-buttons { display: flex; gap: 10px; margin-top: 20px; }
         .modal-buttons button { flex: 1; }
         
-        .api-section {
+        .export-section {
             background: #1a1a2e;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+            border: 2px solid #00d26a;
+        }
+        .export-section h3 { color: #00d26a; margin-bottom: 10px; }
+        .export-section p { color: #888; margin-bottom: 15px; font-size: 14px; }
+        .json-preview {
+            background: #0a0a0a;
             padding: 15px;
             border-radius: 5px;
-            margin-top: 20px;
             font-family: monospace;
             font-size: 12px;
             color: #00d4ff;
+            max-height: 200px;
+            overflow-y: auto;
+            margin-bottom: 15px;
+            white-space: pre-wrap;
+            word-break: break-all;
         }
-        .copy-btn {
-            background: #333;
-            color: white;
-            padding: 5px 10px;
-            border: none;
-            border-radius: 3px;
-            cursor: pointer;
-            float: right;
+        .instructions {
+            background: #2d2d2d;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 15px;
         }
+        .instructions h4 { color: #ffa502; margin-bottom: 10px; }
+        .instructions ol { color: #ccc; padding-left: 20px; }
+        .instructions li { margin-bottom: 8px; font-size: 14px; }
     </style>
 </head>
 <body>
     <div class="header">
         <h1>👑 NINJA PRO ADMIN</h1>
         <div>
+            <button class="btn btn-export" onclick="showExport()">📥 EXPORT JSON</button>
             <button class="btn btn-add" onclick="showAddUser()">➕ ADD USER</button>
             <button class="btn btn-logout" onclick="logout()">🚪 LOGOUT</button>
         </div>
@@ -173,19 +188,6 @@
                 </tbody>
             </table>
         </div>
-
-        <!-- API Info -->
-        <div class="section">
-            <h2>🔌 API ENDPOINT</h2>
-            <p style="color: #888; margin-bottom: 10px;">Software will fetch data from this URL:</p>
-            <div class="api-section">
-                <button class="copy-btn" onclick="copyApiUrl()">COPY</button>
-                <div id="apiUrl">https://your-github-username.github.io/ninja-pro/data.json</div>
-            </div>
-            <p style="color: #666; margin-top: 10px; font-size: 12px;">
-                ⚠️ Update this URL in the Python software before distributing!
-            </p>
-        </div>
     </div>
 
     <!-- Add User Modal -->
@@ -213,7 +215,7 @@
             </div>
             <div class="modal-buttons">
                 <button class="btn btn-add" onclick="addUser()">CREATE</button>
-                <button class="btn" style="background: #333; color: white;" onclick="closeModal()">CANCEL</button>
+                <button class="btn" style="background: #333; color: white;" onclick="closeModal('addModal')">CANCEL</button>
             </div>
         </div>
     </div>
@@ -228,12 +230,44 @@
                 <input type="text" id="editPassword" placeholder="New password">
             </div>
             <div class="form-group">
-                <label>Expiry Extension (days from now)</label>
+                <label>Expiry Extension (days from now, 0 = never)</label>
                 <input type="number" id="editExpiry" value="30" min="0">
             </div>
             <div class="modal-buttons">
                 <button class="btn btn-add" onclick="updateUser()">UPDATE</button>
-                <button class="btn" style="background: #333; color: white;" onclick="closeEditModal()">CANCEL</button>
+                <button class="btn" style="background: #333; color: white;" onclick="closeModal('editModal')">CANCEL</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export Modal -->
+    <div class="modal" id="exportModal">
+        <div class="modal-content" style="width: 600px; max-height: 80vh; overflow-y: auto;">
+            <h3>📥 EXPORT DATA.JSON</h3>
+            <p style="color: #888; margin-bottom: 15px;">
+                Copy this JSON and paste it into your <code>data.json</code> file on GitHub.
+            </p>
+            
+            <div class="json-preview" id="jsonPreview"></div>
+            
+            <div class="modal-buttons">
+                <button class="btn btn-export" onclick="downloadJSON()">💾 DOWNLOAD FILE</button>
+                <button class="btn" style="background: #333; color: white;" onclick="copyJSON()">📋 COPY TO CLIPBOARD</button>
+                <button class="btn" style="background: #666; color: white;" onclick="closeModal('exportModal')">CLOSE</button>
+            </div>
+
+            <div class="instructions">
+                <h4>📋 How to update GitHub:</h4>
+                <ol>
+                    <li>Click "DOWNLOAD FILE" or "COPY TO CLIPBOARD"</li>
+                    <li>Go to your GitHub repo: <code>github.com/ninjaalter/ninja-pro</code></li>
+                    <li>Click on <code>data.json</code> file</li>
+                    <li>Click pencil icon (✏️) to edit</li>
+                    <li>Delete old content and paste new JSON</li>
+                    <li>Click "Commit changes" at bottom</li>
+                    <li>Wait 2-3 minutes for changes to apply</li>
+                    <li>Test login in Python software!</li>
+                </ol>
             </div>
         </div>
     </div>
@@ -244,15 +278,29 @@
             window.location.href = 'index.html';
         }
 
-        // Data storage (in real implementation, this would be on a server)
-        // For GitHub Pages, we'll use a JSON file that you manually update
-        let users = JSON.parse(localStorage.getItem('ninja_users')) || {};
+        // Load users from localStorage or initialize
+        let users = JSON.parse(localStorage.getItem('ninja_users')) || {
+            "admin": {
+                "password_hash": "d6fe8c68",
+                "role": "admin",
+                "expiry": null,
+                "banned": false,
+                "created": new Date().toISOString()
+            }
+        };
+
+        // Scripts config
+        const scripts = {
+            "demorgan": { "w_time": 2, "s_time": 2, "wait_time": 540 },
+            "illegal": { "key_g": "g", "key_1": "e", "key_2": "4", "key_3": "3", "delay_between": 0.3, "loop_delay": 2.0 },
+            "pach": { "key_g": "g", "key_basic": "e", "key_hand": "f", "delay_between": 0.3, "loop_delay": 2.0 },
+            "drug": { "key": "e", "count": 5, "initial_delay": 2, "repeat_delay": 120 }
+        };
 
         function saveData() {
             localStorage.setItem('ninja_users', JSON.stringify(users));
             updateStats();
             renderTable();
-            generateJsonFile();
         }
 
         function updateStats() {
@@ -272,7 +320,6 @@
             for (const [username, data] of Object.entries(users)) {
                 const tr = document.createElement('tr');
                 
-                // Status
                 let statusClass = 'status-active';
                 let statusText = '✓ ACTIVE';
                 
@@ -310,16 +357,16 @@
             document.getElementById('addModal').style.display = 'flex';
         }
 
-        function closeModal() {
-            document.getElementById('addModal').style.display = 'none';
+        function showExport() {
+            generateJSON();
+            document.getElementById('exportModal').style.display = 'flex';
         }
 
-        function closeEditModal() {
-            document.getElementById('editModal').style.display = 'none';
+        function closeModal(id) {
+            document.getElementById(id).style.display = 'none';
         }
 
         function hashPassword(password) {
-            // Simple hash (in production, use proper hashing)
             let hash = 0;
             for (let i = 0; i < password.length; i++) {
                 const char = password.charCodeAt(i);
@@ -359,11 +406,13 @@
             };
             
             saveData();
-            closeModal();
+            closeModal('addModal');
             
             // Clear form
             document.getElementById('newUsername').value = '';
             document.getElementById('newPassword').value = '';
+            
+            alert(`User "${username}" created! Don't forget to EXPORT JSON and update GitHub!`);
         }
 
         function banUser(username) {
@@ -373,6 +422,7 @@
                 users[username].banned_reason = reason;
                 users[username].banned_at = new Date().toISOString();
                 saveData();
+                alert(`User "${username}" banned! Export JSON to apply changes.`);
             }
         }
 
@@ -380,6 +430,7 @@
             users[username].banned = false;
             users[username].banned_reason = '';
             saveData();
+            alert(`User "${username}" unbanned! Export JSON to apply changes.`);
         }
 
         function editUser(username) {
@@ -398,14 +449,16 @@
             
             if (expiryDays > 0) {
                 users[username].expiry = new Date(Date.now() + expiryDays * 24 * 60 * 60 * 1000).toISOString();
+            } else {
+                users[username].expiry = null;
             }
             
             saveData();
-            closeEditModal();
+            closeModal('editModal');
+            alert(`User "${username}" updated! Export JSON to apply changes.`);
         }
 
-        function generateJsonFile() {
-            // Generate the data.json content
+        function generateJSON() {
             const data = {
                 app: {
                     toggle_key: "insert",
@@ -413,31 +466,45 @@
                     last_updated: new Date().toISOString()
                 },
                 users: users,
-                scripts: {
-                    demorgan: { w_time: 2, s_time: 2, wait_time: 540 },
-                    illegal: { key_g: "g", key_1: "e", key_2: "4", key_3: "3", delay_between: 0.3, loop_delay: 2.0 },
-                    pach: { key_g: "g", key_basic: "e", key_hand: "f", delay_between: 0.3, loop_delay: 2.0 },
-                    drug: { key: "e", count: 5, initial_delay: 2, repeat_delay: 120 }
-                }
+                scripts: scripts
             };
             
-            // Create downloadable file
-            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            
-            // Store in localStorage for demo (in real app, upload to server)
-            console.log('Data updated:', data);
+            const jsonStr = JSON.stringify(data, null, 2);
+            document.getElementById('jsonPreview').textContent = jsonStr;
+            return jsonStr;
         }
 
-        function copyApiUrl() {
-            const url = document.getElementById('apiUrl').textContent;
-            navigator.clipboard.writeText(url);
-            alert('API URL copied!');
+        function downloadJSON() {
+            const jsonStr = generateJSON();
+            const blob = new Blob([jsonStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'data.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            alert('data.json downloaded! Now upload it to GitHub.');
+        }
+
+        function copyJSON() {
+            const jsonStr = generateJSON();
+            navigator.clipboard.writeText(jsonStr).then(() => {
+                alert('JSON copied to clipboard! Now paste it in GitHub.');
+            });
         }
 
         function logout() {
             localStorage.removeItem('ninja_admin');
             window.location.href = 'index.html';
+        }
+
+        // Close modal on outside click
+        window.onclick = function(event) {
+            if (event.target.classList.contains('modal')) {
+                event.target.style.display = 'none';
+            }
         }
 
         // Initialize
