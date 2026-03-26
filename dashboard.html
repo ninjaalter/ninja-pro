@@ -765,62 +765,69 @@
 
         // ==================== RENDER FUNCTIONS ====================
 
-        function renderLiveUsers(data) {
-            const tbody = document.getElementById('liveUsersTable');
-            tbody.innerHTML = '';
-            
-            const now = Date.now();
-            const twoMinutes = 2 * 60 * 1000;
-            
-            let onlineCount = 0;
-            
-            for (const [username, info] of Object.entries(data)) {
-                if (!info) continue;
-                
-                const lastSeen = info.timestamp ? info.timestamp * 1000 : 0;
-                const isOnline = info.online && (now - lastSeen < twoMinutes);
-                
-                if (isOnline) onlineCount++;
-                
-                const tr = document.createElement('tr');
-                
-                const statusClass = isOnline ? 'status-online' : 'status-offline';
-                const statusText = isOnline ? '🟢 ONLINE' : '⚫ OFFLINE';
-                
-                const scriptBadge = info.script_running && info.script_running !== 'none' 
-                    ? `<span class="script-badge">${info.script_running.toUpperCase()}</span>` 
-                    : '-';
-                
-                const device = info.pc_name || 'Unknown';
-                const ip = info.ip || 'N/A';
-                const lastSeenStr = info.last_seen 
-                    ? new Date(info.last_seen).toLocaleTimeString() 
-                    : 'Never';
-                
-                const loginInfo = getDeviceLoginCount(username, info.hwid);
-                const loginCount = loginInfo.count > 0 ? loginInfo.count : '1';
-                
-                tr.innerHTML = `
-                    <td><strong>${username}</strong> ${info.is_admin ? '👑' : ''}</td>
-                    <td class="${statusClass}">${statusText}</td>
-                    <td>${scriptBadge}</td>
-                    <td>${device}</td>
-                    <td><code>${ip}</code></td>
-                    <td><span class="login-count">${loginCount}</span></td>
-                    <td>${lastSeenStr}</td>
-                    <td>
-                        <button class="btn-view" onclick="viewDeviceDetails('${username}')">💻 DEVICES</button>
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            }
-            
-            if (Object.keys(data).length === 0) {
-                tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #666;">No users connected</td></tr>';
-            }
-            
-            document.getElementById('onlineUsers').textContent = onlineCount;
-        }
+function renderLiveUsers(data) {
+    const tbody = document.getElementById('liveUsersTable');
+    tbody.innerHTML = '';
+    
+    const now = Date.now();
+    const twoMinutes = 2 * 60 * 1000;
+    
+    let onlineCount = 0;
+    
+    // Check each user
+    for (const [username, info] of Object.entries(data)) {
+        if (!info) continue;
+        
+        // Check online status - must be online AND recent timestamp
+        const lastSeen = info.timestamp ? info.timestamp * 1000 : 0;
+        const timeDiff = now - lastSeen;
+        const isOnline = info.online === true && timeDiff < twoMinutes && timeDiff > 0;
+        
+        if (isOnline) onlineCount++;
+        
+        const tr = document.createElement('tr');
+        
+        // Status with color
+        const statusClass = isOnline ? 'status-online' : 'status-offline';
+        const statusText = isOnline ? '🟢 ONLINE' : '🔴 OFFLINE';
+        
+        // Script badge
+        const scriptBadge = isOnline && info.script_running && info.script_running !== 'none' 
+            ? `<span class="script-badge">${info.script_running.toUpperCase()}</span>` 
+            : '-';
+        
+        // Device info
+        const device = info.pc_name || 'Unknown';
+        const ip = info.ip || 'N/A';
+        const lastSeenStr = info.last_seen 
+            ? new Date(info.last_seen).toLocaleTimeString() 
+            : 'Never';
+        
+        // Login count
+        const loginInfo = getDeviceLoginCount(username, info.hwid);
+        const loginCount = isOnline ? (loginInfo.count > 0 ? loginInfo.count : '1') : '-';
+        
+        tr.innerHTML = `
+            <td><strong>${username}</strong> ${info.is_admin ? '👑' : ''}</td>
+            <td class="${statusClass}">${statusText}</td>
+            <td>${scriptBadge}</td>
+            <td>${isOnline ? device : '<span style="color: #666;">-</span>'}</td>
+            <td>${isOnline ? `<code>${ip}</code>` : '<span style="color: #666;">-</span>'}</td>
+            <td>${loginCount}</td>
+            <td>${lastSeenStr}</td>
+            <td>
+                <button class="btn-view" onclick="viewDeviceDetails('${username}')">💻 DEVICES</button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    }
+    
+    if (Object.keys(data).length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #666;">No users in database</td></tr>';
+    }
+    
+    document.getElementById('onlineUsers').textContent = onlineCount;
+}
 
         function updateStats(liveData) {
             const total = Object.keys(users).length;
