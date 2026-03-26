@@ -25,7 +25,25 @@
             align-items: center;
             border-bottom: 2px solid #00d4ff;
         }
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
         .header h1 { color: #00d4ff; }
+        
+        /* Connection Status - Inline */
+        .connection-status {
+            display: inline-block;
+            padding: 8px 15px;
+            border-radius: 5px;
+            font-weight: bold;
+            font-size: 12px;
+        }
+        .conn-connected { background: #00d26a; color: white; }
+        .conn-disconnected { background: #ff4757; color: white; }
+        .conn-connecting { background: #ffa502; color: white; }
+        
         .btn {
             padding: 10px 20px;
             border: none;
@@ -34,6 +52,7 @@
             font-weight: bold;
             transition: 0.3s;
         }
+        .btn:hover { opacity: 0.8; }
         .btn-logout { background: #ff4757; color: white; }
         .btn-add { background: #00d4ff; color: #0a0a0a; }
         .btn-export { background: #00d26a; color: white; }
@@ -41,7 +60,7 @@
         .btn-unban { background: #00d26a; color: white; font-size: 12px; padding: 5px 10px; }
         .btn-edit { background: #ffa502; color: white; font-size: 12px; padding: 5px 10px; }
         .btn-view { background: #9b59b6; color: white; font-size: 12px; padding: 5px 10px; }
-        .btn-refresh { background: #00d4ff; color: #0a0a0a; font-size: 12px; padding: 5px 10px; }
+        .btn-sync { background: #00d4ff; color: #0a0a0a; font-size: 12px; padding: 5px 10px; }
         
         .container {
             max-width: 1400px;
@@ -64,7 +83,6 @@
         .stat-card h3 { color: #888; font-size: 14px; }
         .stat-card .number { font-size: 32px; font-weight: bold; color: #00d4ff; }
         .stat-card.online { border-left-color: #00d26a; }
-        .stat-card.offline { border-left-color: #ff4757; }
         
         .section {
             background: #151515;
@@ -125,18 +143,6 @@
             font-weight: bold;
         }
         
-        .connection-status {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            padding: 10px 20px;
-            border-radius: 5px;
-            font-weight: bold;
-            z-index: 9999;
-        }
-        .conn-connected { background: #00d26a; color: white; }
-        .conn-disconnected { background: #ff4757; color: white; }
-        
         .modal {
             display: none;
             position: fixed;
@@ -166,6 +172,17 @@
         }
         .modal-buttons { display: flex; gap: 10px; margin-top: 20px; }
         .modal-buttons button { flex: 1; }
+        
+        .sync-status {
+            background: #1a1a2e;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            font-size: 12px;
+        }
+        .sync-status.success { color: #00d26a; border-left: 3px solid #00d26a; }
+        .sync-status.error { color: #ff4757; border-left: 3px solid #ff4757; }
+        .sync-status.pending { color: #ffa502; border-left: 3px solid #ffa502; }
         
         .json-preview {
             background: #0a0a0a;
@@ -258,31 +275,29 @@
             margin-bottom: 2px;
         }
         
-        .login-history {
-            margin-top: 10px;
-            padding-top: 10px;
-            border-top: 1px solid #333;
-        }
-        
-        .login-history h4 {
-            color: #ffa502;
-            font-size: 12px;
-            margin-bottom: 5px;
-        }
-        
         .login-count {
             color: #00d26a;
             font-weight: bold;
             font-size: 14px;
         }
+        
+        .realtime-badge {
+            background: #00d26a;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            margin-left: 10px;
+        }
     </style>
 </head>
 <body>
-    <!-- Connection Status -->
-    <div id="connStatus" class="connection-status conn-disconnected">🔴 Disconnected</div>
-
     <div class="header">
-        <h1>👑 NINJA PRO ADMIN <span style="font-size: 14px; color: #00d26a;">(Realtime)</span></h1>
+        <div class="header-left">
+            <h1>👑 NINJA PRO ADMIN</h1>
+            <span id="connStatus" class="connection-status conn-connecting">🟡 Connecting...</span>
+            <span class="realtime-badge">🔥 REALTIME</span>
+        </div>
         <div>
             <button class="btn btn-export" onclick="showExport()">📥 EXPORT JSON</button>
             <button class="btn btn-add" onclick="showAddUser()">➕ ADD USER</button>
@@ -315,6 +330,19 @@
             </div>
         </div>
 
+        <!-- Sync Status -->
+        <div class="section">
+            <h2>🔄 SYNC STATUS</h2>
+            <div id="syncStatus" class="sync-status pending">
+                ⏳ Loading data from Firebase...
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button class="btn btn-sync" onclick="syncFromFirebase()">🔄 SYNC FROM FIREBASE</button>
+                <button class="btn btn-sync" onclick="syncToFirebase()">⬆️ SYNC TO FIREBASE</button>
+                <button class="btn btn-sync" onclick="loadFromGitHub()">📥 LOAD FROM GITHUB</button>
+            </div>
+        </div>
+
         <!-- Live Users Section -->
         <div class="section">
             <h2><span class="live-indicator"></span> LIVE USERS (Real-time)</h2>
@@ -339,7 +367,11 @@
 
         <!-- All Users List -->
         <div class="section">
-            <h2>👥 ALL USERS</h2>
+            <h2>👥 ALL USERS 
+                <span style="font-size: 12px; color: #888; font-weight: normal;">
+                    (Auto-sync with Firebase)
+                </span>
+            </h2>
             <table>
                 <thead>
                     <tr>
@@ -362,7 +394,10 @@
     <!-- Add User Modal -->
     <div class="modal" id="addModal">
         <div class="modal-content">
-            <h3>➕ CREATE NEW USER</h3>
+            <h3>➕ CREATE NEW USER (Real-time)</h3>
+            <div class="sync-status pending" id="addUserStatus">
+                User will be added to Firebase instantly!
+            </div>
             <div class="form-group">
                 <label>Username</label>
                 <input type="text" id="newUsername" placeholder="Enter username">
@@ -383,7 +418,7 @@
                 <input type="number" id="newExpiry" value="30" min="0">
             </div>
             <div class="modal-buttons">
-                <button class="btn btn-add" onclick="addUser()">CREATE</button>
+                <button class="btn btn-add" onclick="addUserRealtime()">➕ CREATE & SYNC</button>
                 <button class="btn" style="background: #333; color: white;" onclick="closeModal('addModal')">CANCEL</button>
             </div>
         </div>
@@ -403,7 +438,7 @@
                 <input type="number" id="editExpiry" value="30" min="0">
             </div>
             <div class="modal-buttons">
-                <button class="btn btn-add" onclick="updateUser()">UPDATE</button>
+                <button class="btn btn-add" onclick="updateUserRealtime()">💾 SAVE & SYNC</button>
                 <button class="btn" style="background: #333; color: white;" onclick="closeModal('editModal')">CANCEL</button>
             </div>
         </div>
@@ -413,9 +448,7 @@
     <div class="modal" id="deviceModal">
         <div class="modal-content device-modal">
             <h3>💻 DEVICE DETAILS - <span id="deviceUsername"></span></h3>
-            <div class="device-list" id="deviceList">
-                <!-- Dynamic content -->
-            </div>
+            <div class="device-list" id="deviceList"></div>
             <div class="modal-buttons">
                 <button class="btn" style="background: #666; color: white;" onclick="closeModal('deviceModal')">CLOSE</button>
             </div>
@@ -427,7 +460,7 @@
         <div class="modal-content" style="width: 600px; max-height: 80vh; overflow-y: auto;">
             <h3>📥 EXPORT DATA.JSON</h3>
             <p style="color: #888; margin-bottom: 15px;">
-                Copy this JSON and paste it into your <code>data.json</code> file on GitHub.
+                Copy this JSON for GitHub backup (Firebase is primary now!)
             </p>
             
             <div class="json-preview" id="jsonPreview"></div>
@@ -436,19 +469,6 @@
                 <button class="btn btn-export" onclick="downloadJSON()">💾 DOWNLOAD FILE</button>
                 <button class="btn" style="background: #333; color: white;" onclick="copyJSON()">📋 COPY TO CLIPBOARD</button>
                 <button class="btn" style="background: #666; color: white;" onclick="closeModal('exportModal')">CLOSE</button>
-            </div>
-
-            <div style="background: #2d2d2d; padding: 15px; border-radius: 5px; margin-top: 15px;">
-                <h4 style="color: #ffa502; margin-bottom: 10px;">📋 How to update GitHub:</h4>
-                <ol style="color: #ccc; padding-left: 20px;">
-                    <li>Click "DOWNLOAD FILE" or "COPY TO CLIPBOARD"</li>
-                    <li>Go to your GitHub repo</li>
-                    <li>Click on <code>data.json</code> file</li>
-                    <li>Click pencil icon (✏️) to edit</li>
-                    <li>Delete old content and paste new JSON</li>
-                    <li>Click "Commit changes"</li>
-                    <li>Wait 2-3 minutes for changes</li>
-                </ol>
             </div>
         </div>
     </div>
@@ -468,58 +488,62 @@
             window.location.href = 'index.html';
         }
 
-        // Load data from localStorage (GitHub se)
-        let users = JSON.parse(localStorage.getItem('ninja_users')) || {
-            "admin": {
-                "password_hash": "d6fe8c68",
-                "role": "admin",
-                "expiry": null,
-                "banned": false,
-                created: new Date().toISOString(),
-                devices: []
-            }
-        };
-
-        const scripts = {
-            "demorgan": { "w_time": 2, "s_time": 2, "wait_time": 540 },
-            "illegal": { "key_g": "g", "key_1": "e", "key_2": "4", "key_3": "3", "delay_between": 0.3, "loop_delay": 2.0 },
-            "pach": { "key_g": "g", "key_basic": "e", "key_hand": "f", "delay_between": 0.3, "loop_delay": 2.0 },
-            "drug": { "key": "e", "count": 5, "initial_delay": 2, "repeat_delay": 120 }
-        };
-
-        // Store live data
+        // Global data
+        let users = {};
         let liveUsersData = {};
-        let deviceLoginCounts = {}; // Track login counts per device
+        let deviceLoginCounts = {};
+        let firebaseUsersData = {};
 
-        // ==================== REALTIME LISTENERS ====================
-        
-        // Connection status monitor
+        // ==================== CONNECTION STATUS ====================
         const connectedRef = database.ref(".info/connected");
         connectedRef.on("value", (snap) => {
             const status = document.getElementById('connStatus');
             if (snap.val() === true) {
                 status.textContent = "🟢 Connected";
                 status.className = "connection-status conn-connected";
+                updateSyncStatus("✅ Connected to Firebase Realtime Database", "success");
             } else {
                 status.textContent = "🔴 Disconnected";
                 status.className = "connection-status conn-disconnected";
+                updateSyncStatus("❌ Disconnected from Firebase", "error");
             }
         });
 
-        // Live users listener
+        function updateSyncStatus(message, type) {
+            const status = document.getElementById('syncStatus');
+            status.textContent = message;
+            status.className = `sync-status ${type}`;
+        }
+
+        // ==================== REALTIME LISTENERS ====================
+        
+        // Listen for users data from Firebase
+        function listenFirebaseUsers() {
+            const usersRef = database.ref('users');
+            usersRef.on('value', (snapshot) => {
+                const data = snapshot.val() || {};
+                firebaseUsersData = data;
+                
+                // Merge with local data (Firebase priority)
+                users = { ...users, ...data };
+                
+                // Save to localStorage
+                localStorage.setItem('ninja_users', JSON.stringify(users));
+                
+                renderTable();
+                updateSyncStatus("✅ Users synced from Firebase", "success");
+            });
+        }
+
+        // Listen for live users
         function listenLiveUsers() {
             const liveUsersRef = database.ref('live_users');
-            
             liveUsersRef.on('value', (snapshot) => {
                 const data = snapshot.val() || {};
                 liveUsersData = data;
-                
-                // Update login counts
                 updateLoginCounts(data);
-                
                 renderLiveUsers(data);
                 updateStats(data);
-                renderTable(); // Update all users table too
             });
         }
 
@@ -543,7 +567,6 @@
                         };
                     }
                     
-                    // Increment count every time we see this device online
                     deviceLoginCounts[deviceKey].count++;
                     deviceLoginCounts[deviceKey].lastSeen = new Date().toISOString();
                 }
@@ -554,6 +577,192 @@
             const deviceKey = `${username}_${hwid}`;
             return deviceLoginCounts[deviceKey] || { count: 0, firstSeen: '-', lastSeen: '-' };
         }
+
+        // ==================== REALTIME USER OPERATIONS ====================
+
+        function addUserRealtime() {
+            const username = document.getElementById('newUsername').value.trim();
+            const password = document.getElementById('newPassword').value;
+            const role = document.getElementById('newRole').value;
+            const expiryDays = parseInt(document.getElementById('newExpiry').value);
+            
+            if (!username || !password) {
+                alert('Please fill all fields!');
+                return;
+            }
+            
+            if (users[username] || firebaseUsersData[username]) {
+                alert('Username already exists!');
+                return;
+            }
+            
+            const expiry = expiryDays > 0 
+                ? new Date(Date.now() + expiryDays * 24 * 60 * 60 * 1000).toISOString()
+                : null;
+            
+            const newUser = {
+                password_hash: hashPassword(password),
+                role: role,
+                expiry: expiry,
+                banned: false,
+                banned_reason: '',
+                created: new Date().toISOString(),
+                devices: [],
+                created_by: 'web_admin',
+                created_at: new Date().toISOString()
+            };
+            
+            // Add to Firebase (real-time)
+            const statusDiv = document.getElementById('addUserStatus');
+            statusDiv.textContent = "⏳ Adding to Firebase...";
+            statusDiv.className = "sync-status pending";
+            
+            database.ref(`users/${username}`).set(newUser)
+                .then(() => {
+                    // Also update local
+                    users[username] = newUser;
+                    localStorage.setItem('ninja_users', JSON.stringify(users));
+                    
+                    statusDiv.textContent = "✅ User added successfully!";
+                    statusDiv.className = "sync-status success";
+                    
+                    setTimeout(() => {
+                        closeModal('addModal');
+                        document.getElementById('newUsername').value = '';
+                        document.getElementById('newPassword').value = '';
+                        statusDiv.textContent = "User will be added to Firebase instantly!";
+                        statusDiv.className = "sync-status pending";
+                    }, 1500);
+                    
+                    renderTable();
+                })
+                .catch((error) => {
+                    statusDiv.textContent = "❌ Error: " + error.message;
+                    statusDiv.className = "sync-status error";
+                });
+        }
+
+        function updateUserRealtime() {
+            const username = document.getElementById('editUsername').value;
+            const newPass = document.getElementById('editPassword').value;
+            const expiryDays = parseInt(document.getElementById('editExpiry').value);
+            
+            const updates = {};
+            
+            if (newPass) {
+                updates.password_hash = hashPassword(newPass);
+            }
+            
+            if (expiryDays > 0) {
+                updates.expiry = new Date(Date.now() + expiryDays * 24 * 60 * 60 * 1000).toISOString();
+            } else {
+                updates.expiry = null;
+            }
+            
+            updates.updated_at = new Date().toISOString();
+            
+            // Update Firebase
+            database.ref(`users/${username}`).update(updates)
+                .then(() => {
+                    // Update local
+                    Object.assign(users[username], updates);
+                    localStorage.setItem('ninja_users', JSON.stringify(users));
+                    
+                    alert(`User "${username}" updated in real-time!`);
+                    closeModal('editModal');
+                    renderTable();
+                })
+                .catch((error) => {
+                    alert("Error: " + error.message);
+                });
+        }
+
+        function banUserRealtime(username) {
+            const reason = prompt('Enter ban reason:', 'Violation of rules');
+            if (!reason) return;
+            
+            const updates = {
+                banned: true,
+                banned_reason: reason,
+                banned_at: new Date().toISOString(),
+                banned_by: 'web_admin'
+            };
+            
+            database.ref(`users/${username}`).update(updates)
+                .then(() => {
+                    Object.assign(users[username], updates);
+                    localStorage.setItem('ninja_users', JSON.stringify(users));
+                    renderTable();
+                    alert(`User "${username}" banned in real-time!`);
+                });
+        }
+
+        function unbanUserRealtime(username) {
+            const updates = {
+                banned: false,
+                banned_reason: '',
+                unbanned_at: new Date().toISOString()
+            };
+            
+            database.ref(`users/${username}`).update(updates)
+                .then(() => {
+                    Object.assign(users[username], updates);
+                    localStorage.setItem('ninja_users', JSON.stringify(users));
+                    renderTable();
+                    alert(`User "${username}" unbanned in real-time!`);
+                });
+        }
+
+        // ==================== SYNC FUNCTIONS ====================
+
+        function syncFromFirebase() {
+            updateSyncStatus("⏳ Syncing from Firebase...", "pending");
+            
+            database.ref('users').once('value')
+                .then((snapshot) => {
+                    const data = snapshot.val() || {};
+                    users = data;
+                    localStorage.setItem('ninja_users', JSON.stringify(users));
+                    renderTable();
+                    updateSyncStatus("✅ Synced from Firebase successfully!", "success");
+                })
+                .catch((error) => {
+                    updateSyncStatus("❌ Error: " + error.message, "error");
+                });
+        }
+
+        function syncToFirebase() {
+            updateSyncStatus("⏳ Syncing to Firebase...", "pending");
+            
+            database.ref('users').set(users)
+                .then(() => {
+                    updateSyncStatus("✅ All users synced to Firebase!", "success");
+                })
+                .catch((error) => {
+                    updateSyncStatus("❌ Error: " + error.message, "error");
+                });
+        }
+
+        function loadFromGitHub() {
+            updateSyncStatus("⏳ Loading from GitHub...", "pending");
+            
+            // Fetch from GitHub
+            fetch('https://ninjaalter.github.io/ninja-pro/data.json')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.users) {
+                        users = data.users;
+                        localStorage.setItem('ninja_users', JSON.stringify(users));
+                        renderTable();
+                        updateSyncStatus("✅ Loaded from GitHub! Click 'SYNC TO FIREBASE' to update Firebase.", "success");
+                    }
+                })
+                .catch(error => {
+                    updateSyncStatus("❌ GitHub error: " + error.message, "error");
+                });
+        }
+
+        // ==================== RENDER FUNCTIONS ====================
 
         function renderLiveUsers(data) {
             const tbody = document.getElementById('liveUsersTable');
@@ -567,7 +776,6 @@
             for (const [username, info] of Object.entries(data)) {
                 if (!info) continue;
                 
-                // Check if online (last 2 minutes)
                 const lastSeen = info.timestamp ? info.timestamp * 1000 : 0;
                 const isOnline = info.online && (now - lastSeen < twoMinutes);
                 
@@ -575,23 +783,19 @@
                 
                 const tr = document.createElement('tr');
                 
-                // Status
                 const statusClass = isOnline ? 'status-online' : 'status-offline';
                 const statusText = isOnline ? '🟢 ONLINE' : '⚫ OFFLINE';
                 
-                // Script badge
                 const scriptBadge = info.script_running && info.script_running !== 'none' 
                     ? `<span class="script-badge">${info.script_running.toUpperCase()}</span>` 
                     : '-';
                 
-                // Device info
                 const device = info.pc_name || 'Unknown';
                 const ip = info.ip || 'N/A';
                 const lastSeenStr = info.last_seen 
                     ? new Date(info.last_seen).toLocaleTimeString() 
                     : 'Never';
                 
-                // Login count for this device
                 const loginInfo = getDeviceLoginCount(username, info.hwid);
                 const loginCount = loginInfo.count > 0 ? loginInfo.count : '1';
                 
@@ -622,7 +826,6 @@
             const banned = Object.values(users).filter(u => u.banned).length;
             const active = total - banned;
             
-            // Count total unique devices from live data
             const uniqueDevices = new Set();
             for (const [username, info] of Object.entries(liveData)) {
                 if (info && info.hwid) {
@@ -685,28 +888,11 @@
                             <span>${liveInfo.is_admin ? '👑 Yes' : '👤 No'}</span>
                         </div>
                     </div>
-                    <div class="login-history">
-                        <h4>📊 LOGIN STATISTICS</h4>
-                        <div class="device-stats">
-                            <div class="device-stat">
-                                <label>Total Logins (This Session)</label>
-                                <span class="login-count">${loginInfo.count || 1}</span>
-                            </div>
-                            <div class="device-stat">
-                                <label>First Seen</label>
-                                <span>${loginInfo.firstSeen ? new Date(loginInfo.firstSeen).toLocaleString() : 'Just now'}</span>
-                            </div>
-                            <div class="device-stat">
-                                <label>Last Active</label>
-                                <span>${loginInfo.lastSeen ? new Date(loginInfo.lastSeen).toLocaleString() : 'Now'}</span>
-                            </div>
-                        </div>
-                    </div>
                 `;
                 deviceList.appendChild(currentDiv);
             }
             
-            // All registered devices from GitHub data
+            // All registered devices
             if (userDevices.length > 0) {
                 const historyHeader = document.createElement('div');
                 historyHeader.style.marginTop = '20px';
@@ -722,15 +908,18 @@
                     const statusBadge = isCurrentDevice ? '<span style="color: #00d26a; font-weight: bold;">🟢 CURRENT</span>' : 
                                        (device.banned ? '<span style="color: #ff4757;">🚫 BANNED</span>' : '<span style="color: #888;">⚪ OFFLINE</span>');
                     
+                    const loginCount = device.login_count || 1;
+                    
                     div.innerHTML = `
                         <div class="device-header">
                             <div>
                                 <strong>💻 Device #${index + 1}</strong> ${statusBadge}
+                                <span class="login-count" style="margin-left: 10px;">${loginCount} logins</span>
                             </div>
                             <div>
                                 ${device.banned 
-                                    ? `<button class="btn-unban" onclick="unbanDevice('${username}', ${index})">✓ UNBAN</button>`
-                                    : `<button class="btn-ban" onclick="banDevice('${username}', ${index})">🚫 BAN</button>`
+                                    ? `<button class="btn-unban" onclick="unbanDeviceRealtime('${username}', ${index})">✓ UNBAN</button>`
+                                    : `<button class="btn-ban" onclick="banDeviceRealtime('${username}', ${index})">🚫 BAN</button>`
                                 }
                             </div>
                         </div>
@@ -762,11 +951,6 @@
             document.getElementById('deviceModal').style.display = 'flex';
         }
 
-        function saveData() {
-            localStorage.setItem('ninja_users', JSON.stringify(users));
-            renderTable();
-        }
-
         function renderTable() {
             const tbody = document.getElementById('usersTable');
             tbody.innerHTML = '';
@@ -789,12 +973,9 @@
                 const deviceCount = data.devices?.length || 0;
                 const roleIcon = data.role === 'admin' ? '👑' : '👤';
                 
-                // Calculate total logins for this user across all devices
                 let totalLogins = 0;
-                if (liveUsersData[username]) {
-                    const liveInfo = liveUsersData[username];
-                    const loginInfo = getDeviceLoginCount(username, liveInfo.hwid);
-                    totalLogins = loginInfo.count || 0;
+                if (data.devices) {
+                    totalLogins = data.devices.reduce((sum, d) => sum + (d.login_count || 1), 0);
                 }
                 
                 tr.innerHTML = `
@@ -806,8 +987,8 @@
                     <td><span class="login-count">${totalLogins > 0 ? totalLogins : '-'}</span></td>
                     <td>
                         ${data.banned 
-                            ? `<button class="btn-unban" onclick="unbanUser('${username}')">✓ UNBAN</button>`
-                            : `<button class="btn-ban" onclick="banUser('${username}')">🚫 BAN</button>`
+                            ? `<button class="btn-unban" onclick="unbanUserRealtime('${username}')">✓ UNBAN</button>`
+                            : `<button class="btn-ban" onclick="banUserRealtime('${username}')">🚫 BAN</button>`
                         }
                         <button class="btn-edit" onclick="editUser('${username}')">✏️ EDIT</button>
                         <button class="btn-view" onclick="viewDeviceDetails('${username}')">💻 DEVICES</button>
@@ -815,6 +996,18 @@
                 `;
                 tbody.appendChild(tr);
             }
+        }
+
+        // ==================== HELPER FUNCTIONS ====================
+
+        function hashPassword(password) {
+            let hash = 0;
+            for (let i = 0; i < password.length; i++) {
+                const char = password.charCodeAt(i);
+                hash = ((hash << 5) - hash) + char;
+                hash = hash & hash;
+            }
+            return Math.abs(hash).toString(16);
         }
 
         function showAddUser() {
@@ -830,110 +1023,39 @@
             document.getElementById(id).style.display = 'none';
         }
 
-        function hashPassword(password) {
-            let hash = 0;
-            for (let i = 0; i < password.length; i++) {
-                const char = password.charCodeAt(i);
-                hash = ((hash << 5) - hash) + char;
-                hash = hash & hash;
-            }
-            return Math.abs(hash).toString(16);
-        }
-
-        function addUser() {
-            const username = document.getElementById('newUsername').value.trim();
-            const password = document.getElementById('newPassword').value;
-            const role = document.getElementById('newRole').value;
-            const expiryDays = parseInt(document.getElementById('newExpiry').value);
-            
-            if (!username || !password) {
-                alert('Please fill all fields!');
-                return;
-            }
-            
-            if (users[username]) {
-                alert('Username already exists!');
-                return;
-            }
-            
-            const expiry = expiryDays > 0 
-                ? new Date(Date.now() + expiryDays * 24 * 60 * 60 * 1000).toISOString()
-                : null;
-            
-            users[username] = {
-                password_hash: hashPassword(password),
-                role: role,
-                expiry: expiry,
-                banned: false,
-                banned_reason: '',
-                created: new Date().toISOString(),
-                devices: []
-            };
-            
-            saveData();
-            closeModal('addModal');
-            document.getElementById('newUsername').value = '';
-            document.getElementById('newPassword').value = '';
-            alert(`User "${username}" created! Export JSON to apply changes.`);
-        }
-
-        function banDevice(username, deviceIndex) {
-            if (!users[username].devices[deviceIndex]) return;
-            users[username].devices[deviceIndex].banned = true;
-            users[username].devices[deviceIndex].banned_at = new Date().toISOString();
-            saveData();
-            viewDeviceDetails(username);
-            alert('Device banned! User cannot login from this PC anymore.');
-        }
-
-        function unbanDevice(username, deviceIndex) {
-            if (!users[username].devices[deviceIndex]) return;
-            users[username].devices[deviceIndex].banned = false;
-            saveData();
-            viewDeviceDetails(username);
-        }
-
-        function banUser(username) {
-            const reason = prompt('Enter ban reason:', 'Violation of rules');
-            if (reason) {
-                users[username].banned = true;
-                users[username].banned_reason = reason;
-                users[username].banned_at = new Date().toISOString();
-                saveData();
-                alert(`User "${username}" banned! Export JSON to apply changes.`);
-            }
-        }
-
-        function unbanUser(username) {
-            users[username].banned = false;
-            users[username].banned_reason = '';
-            saveData();
-            alert(`User "${username}" unbanned! Export JSON to apply changes.`);
-        }
-
         function editUser(username) {
             document.getElementById('editUsername').value = username;
             document.getElementById('editModal').style.display = 'flex';
         }
 
-        function updateUser() {
-            const username = document.getElementById('editUsername').value;
-            const newPass = document.getElementById('editPassword').value;
-            const expiryDays = parseInt(document.getElementById('editExpiry').value);
+        function banDeviceRealtime(username, deviceIndex) {
+            if (!users[username].devices[deviceIndex]) return;
             
-            if (newPass) {
-                users[username].password_hash = hashPassword(newPass);
-            }
+            const updates = {};
+            updates[`users/${username}/devices/${deviceIndex}/banned`] = true;
+            updates[`users/${username}/devices/${deviceIndex}/banned_at`] = new Date().toISOString();
             
-            if (expiryDays > 0) {
-                users[username].expiry = new Date(Date.now() + expiryDays * 24 * 60 * 60 * 1000).toISOString();
-            } else {
-                users[username].expiry = null;
-            }
+            database.ref().update(updates)
+                .then(() => {
+                    users[username].devices[deviceIndex].banned = true;
+                    localStorage.setItem('ninja_users', JSON.stringify(users));
+                    viewDeviceDetails(username);
+                    alert('Device banned in real-time!');
+                });
+        }
+
+        function unbanDeviceRealtime(username, deviceIndex) {
+            if (!users[username].devices[deviceIndex]) return;
             
-            saveData();
-            closeModal('editModal');
-            alert(`User "${username}" updated! Export JSON to apply changes.`);
+            const updates = {};
+            updates[`users/${username}/devices/${deviceIndex}/banned`] = false;
+            
+            database.ref().update(updates)
+                .then(() => {
+                    users[username].devices[deviceIndex].banned = false;
+                    localStorage.setItem('ninja_users', JSON.stringify(users));
+                    viewDeviceDetails(username);
+                });
         }
 
         function generateJSON() {
@@ -963,13 +1085,13 @@
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
-            alert('data.json downloaded! Upload to GitHub now.');
+            alert('data.json downloaded!');
         }
 
         function copyJSON() {
             const jsonStr = generateJSON();
             navigator.clipboard.writeText(jsonStr).then(() => {
-                alert('JSON copied! Paste in GitHub now.');
+                alert('JSON copied!');
             });
         }
 
@@ -985,10 +1107,18 @@
         }
 
         // ==================== INITIALIZE ====================
-        // Start realtime listeners
+        
+        // Load from localStorage first
+        const savedUsers = localStorage.getItem('ninja_users');
+        if (savedUsers) {
+            users = JSON.parse(savedUsers);
+        }
+        
+        // Start listeners
+        listenFirebaseUsers();
         listenLiveUsers();
         
-        // Initialize static table
+        // Initial render
         renderTable();
     </script>
 </body>
